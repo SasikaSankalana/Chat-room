@@ -11,6 +11,7 @@
 #include <signal.h>
 
 #define BUFFER_SZ 2048
+#define MAX_CLIENTS 10
 
 static _Atomic unsigned int client_count = 0;
 static int uid = 10;
@@ -25,7 +26,7 @@ typedef struct{
 	char name[32];
 } client_t;
 
-client_t *clients[max_no_of_clients];
+client_t *clients[MAX_CLIENTS];
 
 pthread_mutex_t clients_mutex = PTHREAD_MUTEX_INITIALIZER;
 
@@ -171,7 +172,7 @@ int main(int argc, char **argv){
 
     int max_idle_time = atoi(argv[1]);
     max_no_of_clients = atoi(argv[2]);
-
+    
 	char *ip = "127.0.0.1";
 	int port = 4444;
 
@@ -183,9 +184,9 @@ int main(int argc, char **argv){
 
     /* Socket settings */
     listenfd = socket(AF_INET, SOCK_STREAM, 0);
-    serv_addr.sin_family = AF_INET;
-    serv_addr.sin_addr.s_addr = inet_addr(ip);
-    serv_addr.sin_port = htons(port);
+    server_address.sin_family = AF_INET;
+    server_address.sin_addr.s_addr = inet_addr(ip);
+    server_address.sin_port = htons(port);
 
     /* Ignore pipe signals */
 	signal(SIGPIPE, SIG_IGN);
@@ -217,7 +218,7 @@ int main(int argc, char **argv){
 		if((client_count + 1) == max_no_of_clients){
 			printf("Max clients reached. Rejected: ");
 			print_client_addr(client_address);
-			printf(":%d\n", cli_addr.sin_port);
+			printf(":%d\n", client_address.sin_port);
 			close(connfd);
 			continue;
 		}
