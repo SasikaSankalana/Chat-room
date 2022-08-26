@@ -122,14 +122,16 @@ int main(int argc, char **argv)
         str_overwrite_stdout();
         fgets(command, LENGTH, stdin);
         str_trim_lf(command, LENGTH);
+        char token[20];
+        char sub_text[LENGTH];
 
-        char *token = strtok(command, " ");
-        char *upText = toUpper(command);
-        token = strtok(NULL, " ");
+        sscanf(command, "%s %[^\n]", token, sub_text);
+
+        char *upText = toUpper(token);
 
         if (strcmp(upText, "JOIN") == 0)
         {
-            strcpy(name, token);
+            strcpy(name, sub_text);
             str_trim_lf(name, strlen(name));
 
             struct sockaddr_in server_address;
@@ -149,6 +151,7 @@ int main(int argc, char **argv)
             }
 
             // Send name
+
             send(sockfd, name, 32, 0);
 
             printf("=== WELCOME TO THE CHATROOM ===\n");
