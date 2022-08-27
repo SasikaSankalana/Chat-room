@@ -16,6 +16,7 @@
 volatile sig_atomic_t flag = 0;
 int sockfd = 0;
 char name[20];
+int is_joined = 0;
 
 void str_overwrite_stdout()
 {
@@ -131,30 +132,52 @@ int main(int argc, char **argv)
 
         if (strcmp(upText, "JOIN") == 0)
         {
-            strcpy(name, sub_text);
-            str_trim_lf(name, strlen(name));
-
-            struct sockaddr_in server_address;
-
-            /* Socket settings */
-            sockfd = socket(AF_INET, SOCK_STREAM, 0);
-            server_address.sin_family = AF_INET;
-            server_address.sin_addr.s_addr = inet_addr(ip);
-            server_address.sin_port = htons(port);
-
-            // Connect to Server
-            int connect_error = connect(sockfd, (struct sockaddr *)&server_address, sizeof(server_address));
-            if (connect_error == -1)
+            if (is_joined == 0)
             {
-                printf("ERROR: connect\n");
-                return EXIT_FAILURE;
+                strcpy(name, sub_text);
+                str_trim_lf(name, strlen(name));
+
+                struct sockaddr_in server_address;
+
+                /* Socket settings */
+                sockfd = socket(AF_INET, SOCK_STREAM, 0);
+                server_address.sin_family = AF_INET;
+                server_address.sin_addr.s_addr = inet_addr(ip);
+                server_address.sin_port = htons(port);
+
+                // Connect to Server
+                int connect_error = connect(sockfd, (struct sockaddr *)&server_address, sizeof(server_address));
+                if (connect_error == -1)
+                {
+                    printf("ERROR: connect\n");
+                    return EXIT_FAILURE;
+                }
+
+                // Send name
+
+                send(sockfd, name, 32, 0);
+
+                printf("=== WELCOME TO THE CHATROOM ===\n");
+                is_joined = 1;
+
+                pthread_t send_msg_thread;
+                if (pthread_create(&send_msg_thread, NULL, (void *)send_msg_handler, NULL) != 0)
+                {
+                    printf("ERROR: pthread\n");
+                    return EXIT_FAILURE;
+                }
+
+                pthread_t receive_msg_thread;
+                if (pthread_create(&receive_msg_thread, NULL, (void *)recv_msg_handler, NULL) != 0)
+                {
+                    printf("ERROR: pthread\n");
+                    return EXIT_FAILURE;
+                }
             }
-
-            // Send name
-
-            send(sockfd, name, 32, 0);
-
-            printf("=== WELCOME TO THE CHATROOM ===\n");
+            else
+            {
+                printf("Already joined\n");
+            }
         }
         else if (strcmp(upText, "WHOIS") == 0)
         {
@@ -180,7 +203,7 @@ int main(int argc, char **argv)
         }
         else if (strcmp(upText, "QUIT") == 0)
         {
-            // do something else
+            is_joined = 0;
         }
         else /* default: */
         {
@@ -217,20 +240,6 @@ int main(int argc, char **argv)
     // send(sockfd, name, 32, 0);
 
     // printf("=== WELCOME TO THE CHATROOM ===\n");
-
-    pthread_t send_msg_thread;
-    if (pthread_create(&send_msg_thread, NULL, (void *)send_msg_handler, NULL) != 0)
-    {
-        printf("ERROR: pthread\n");
-        return EXIT_FAILURE;
-    }
-
-    pthread_t receive_msg_thread;
-    if (pthread_create(&receive_msg_thread, NULL, (void *)recv_msg_handler, NULL) != 0)
-    {
-        printf("ERROR: pthread\n");
-        return EXIT_FAILURE;
-    }
 
     while (1)
     {
