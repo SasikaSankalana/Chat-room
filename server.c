@@ -10,7 +10,7 @@
 #include <sys/types.h>
 #include <signal.h>
 
-#define BUFFER_SZ 2048
+#define BUFFER_SZ 288
 #define MAX_CLIENTS 10
 
 static _Atomic unsigned int client_count = 0;
@@ -27,6 +27,14 @@ typedef struct
     char fullname[20];
     char name[20];
 } client_t;
+
+struct snc_command_holder
+{
+    char nick_name[20];
+    char command[50];
+    char sub_command[50];
+    char sub_text[256];
+} snc_command;
 
 client_t *clients[MAX_CLIENTS];
 
@@ -125,8 +133,8 @@ void send_message(char *s, int uid)
 void *handle_client(void *arg)
 {
     char buff_out[BUFFER_SZ];
-    char name[32];
-    char fullname[32];
+    char name[50];
+    char fullname[20];
     char nickname[20];
     int leave_flag = 0;
 
@@ -134,7 +142,7 @@ void *handle_client(void *arg)
     client_t *cli = (client_t *)arg;
 
     // Name
-    if (recv(cli->sockfd, name, 32, 0) <= 0 || strlen(name) < 2 || strlen(name) >= 32 - 1)
+    if (recv(cli->sockfd, name, 50, 0) <= 0 || strlen(name) <= 0)
     {
         printf("Didn't enter the name.\n");
         leave_flag = 1;
@@ -143,10 +151,10 @@ void *handle_client(void *arg)
     {
         sscanf(name, "%s %[^\n]", nickname, fullname);
         strcpy(cli->name, nickname);
-        strcpy(cli->fullname, name);
+        strcpy(cli->fullname, fullname);
         sprintf(buff_out, "%s has joined\n", cli->name);
         printf("%s", buff_out);
-        // send_message(buff_out, cli->uid);
+        send_message(buff_out, cli->uid);
     }
 
     bzero(buff_out, BUFFER_SZ);
@@ -159,6 +167,11 @@ void *handle_client(void *arg)
         }
 
         int receive = recv(cli->sockfd, buff_out, BUFFER_SZ, 0);
+        if (receive >= 0)
+        {
+            sscanf(buff_out, "%s %s %s %[^\n]", snc_command.nick_name, snc_command.command, snc_command.sub_command, snc_command.sub_text);
+        }
+
         if (receive > 0)
         {
             if (strlen(buff_out) > 0)
@@ -169,7 +182,7 @@ void *handle_client(void *arg)
                 printf("%s -> %s\n", buff_out, cli->name);
             }
         }
-        else if (receive == 0 || strcmp(buff_out, "exit") == 0)
+        else if (receive == 0 || strcmp(buff_out, "QUIT") == 0)
         {
             sprintf(buff_out, "%s has left\n", cli->name);
             printf("%s", buff_out);
