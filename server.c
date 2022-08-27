@@ -115,7 +115,7 @@ void send_message(char *s, int uid)
     {
         if (clients[i])
         {
-            if (clients[i]->uid != uid)
+            if (clients[i]->uid == uid)
             {
                 if (write(clients[i]->sockfd, s, strlen(s)) < 0)
                 {
@@ -170,10 +170,31 @@ void *handle_client(void *arg)
         if (receive >= 0)
         {
             sscanf(buff_out, "%s %s %s %[^\n]", snc_command.nick_name, snc_command.command, snc_command.sub_command, snc_command.sub_text);
+            bzero(buff_out, BUFFER_SZ);
         }
 
         if (receive > 0)
         {
+            if (strcmp(snc_command.command, "MSG") == 0)
+            {
+                int check = 0;
+                for (int i = 0; i < MAX_CLIENTS; ++i)
+                {
+                    if (strcmp(snc_command.sub_command, clients[i]->name) == 0)
+                    {
+                        sprintf(buff_out, "%s : %s\n", cli->name, snc_command.sub_text);
+                        send_message(buff_out, clients[i]->uid);
+                        check = 1;
+                        break;
+                    }
+
+                    if (check == 0)
+                    {
+                        printf("Check nickname again.");
+                    }
+                                }
+            }
+
             if (strlen(buff_out) > 0)
             {
                 send_message(buff_out, cli->uid);
