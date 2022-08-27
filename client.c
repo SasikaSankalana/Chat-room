@@ -17,6 +17,7 @@ volatile sig_atomic_t flag = 0;
 int sockfd = 0;
 char name[20];
 int is_joined = 0;
+char upper_text[LENGTH];
 
 void str_overwrite_stdout()
 {
@@ -118,6 +119,7 @@ int main(int argc, char **argv)
     signal(SIGINT, catch_ctrl_c_and_exit);
 
     char command[LENGTH] = {};
+    
     while (1)
     {
         str_overwrite_stdout();
@@ -194,7 +196,7 @@ int main(int argc, char **argv)
                 printf("arg error");
             }
 
-            char *time_str = get_time();
+            //char *time_str = get_time();
             // printf("Current Time : %s\n", time_str);
         }
         else if (strcmp(upText, "ALIVE") == 0)
