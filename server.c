@@ -75,7 +75,7 @@ void queue_add(client_t *cl)
 
     for (int i = 0; i < max_no_of_clients; ++i)
     {
-        printf("%d\t%d\t%s\t%s", clients[i]->sockfd, clients[i]->uid, clients[i]->name, clients[i]->fullname);
+        //printf("%d\t%d\t%s\t%s", clients[i]->sockfd, clients[i]->uid, clients[i]->name, clients[i]->fullname);
         if (!clients[i])
         {
             clients[i] = cl;
@@ -153,8 +153,9 @@ void *handle_client(void *arg)
         strcpy(cli->name, nickname);
         strcpy(cli->fullname, fullname);
         sprintf(buff_out, "%s has joined\n", cli->name);
-        printf("%s", buff_out);
-        send_message(buff_out, cli->uid);
+        //printf("%s", buff_out);
+        //send_message(buff_out, cli->uid);
+        //printf("check 4\n");
     }
 
     bzero(buff_out, BUFFER_SZ);
@@ -165,21 +166,32 @@ void *handle_client(void *arg)
         {
             break;
         }
+        
 
+        
         int receive = recv(cli->sockfd, buff_out, BUFFER_SZ, 0);
-        if (receive >= 0)
+        //printf("%d \n",receive);
+        
+        if ( receive >= 0)
         {
+        printf("check 1\n");
+        
             sscanf(buff_out, "%s %s %s %[^\n]", snc_command.nick_name, snc_command.command, snc_command.sub_command, snc_command.sub_text);
-            bzero(buff_out, BUFFER_SZ);
+            //bzero(buff_out, BUFFER_SZ);
+            printf("%s %s %s = %s", snc_command.nick_name, snc_command.command, snc_command.sub_command, snc_command.sub_text);
         }
 
         if (receive > 0)
         {
+        //printf("check 3\n");
             if (strcmp(snc_command.command, "MSG") == 0)
             {
+            //printf("8");
+            //printf("this? %s",snc_command.command);
                 int check = 0;
                 for (int i = 0; i < MAX_CLIENTS; ++i)
                 {
+                printf("kidding");
                     if (strcmp(snc_command.sub_command, clients[i]->name) == 0)
                     {
                         sprintf(buff_out, "%s : %s\n", cli->name, snc_command.sub_text);
@@ -190,24 +202,27 @@ void *handle_client(void *arg)
 
                     if (check == 0)
                     {
+                    //printf("check 21\n");
                         printf("Check nickname again.");
                     }
-                                }
-            }
+                                } printf("22");
+            }//printf("check 23\n");
+            ///// worked send function. But missing one
 
             if (strlen(buff_out) > 0)
             {
-                send_message(buff_out, cli->uid);
+            //printf("check 24\n");
+                //send_message(buff_out, cli->uid);
 
                 str_trim_lf(buff_out, strlen(buff_out));
                 printf("%s -> %s\n", buff_out, cli->name);
             }
         }
-        else if (receive == 0 || strcmp(buff_out, "QUIT") == 0)
+        else if ( receive == 0 || strcmp(buff_out, "QUIT") == 0)
         {
             sprintf(buff_out, "%s has left\n", cli->name);
             printf("%s", buff_out);
-            send_message(buff_out, cli->uid);
+            //send_message(buff_out, cli->uid);
             leave_flag = 1;
         }
         else
