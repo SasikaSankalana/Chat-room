@@ -38,10 +38,15 @@ void str_overwrite_stdout()
 void SNC_command_retriever()
 {
 
+	snc_command.command[0]=0;
+	snc_command.sub_command[0]=0;
+	snc_command.sub_text[0]=0;
     str_overwrite_stdout();
     fgets(input_text, LENGTH, stdin);
+    str_trim_lf(input_text,LENGTH);
     sscanf(input_text, "%s %s  %[^\n]", snc_command.command, snc_command.sub_command, snc_command.sub_text);
-    snc_command.command = toUpper(snc_command.command);
+    toUpper(snc_command.command);
+    strcpy(snc_command.command, upper_text);
 }
 
 int SNC_command_validator()
@@ -80,7 +85,7 @@ int SNC_command_validator()
 
         return 1;
     }
-    else if (strcmp(upText, "WHOIS") == 0)
+    else if (strcmp(snc_command.command, "WHOIS") == 0)
     {
         if (strlen(snc_command.sub_command) > 20)
         {
@@ -102,7 +107,7 @@ int SNC_command_validator()
 
         return 1;
     }
-    else if (strcmp(upText, "MSG") == 0)
+    else if (strcmp(snc_command.command, "MSG") == 0)
     {
         if (strlen(snc_command.sub_command) > 20)
         {
@@ -130,7 +135,7 @@ int SNC_command_validator()
 
         return 1;
     }
-    else if (strcmp(upText, "TIME") == 0)
+    else if (strcmp(snc_command.command, "TIME") == 0)
     {
         if ((strlen(snc_command.sub_command) > 0) || (strlen(snc_command.sub_text) > 0))
         {
@@ -140,7 +145,7 @@ int SNC_command_validator()
 
         return 1;
     }
-    else if (strcmp(upText, "ALIVE") == 0)
+    else if (strcmp(snc_command.command, "ALIVE") == 0)
     {
         if ((strlen(snc_command.sub_command) > 0) || (strlen(snc_command.sub_text) > 0))
         {
@@ -150,7 +155,7 @@ int SNC_command_validator()
 
         return 1;
     }
-    else if (strcmp(upText, "QUIT") == 0)
+    else if (strcmp(snc_command.command, "QUIT") == 0)
     {
         if ((strlen(snc_command.sub_command) > 0) || (strlen(snc_command.sub_text) > 0))
         {
@@ -161,6 +166,7 @@ int SNC_command_validator()
     }
     else
     {
+    //printf("%s",snc_command.command);
         printf("Invalid Command. Please check again  \n ");
         return 0;
     }
@@ -207,8 +213,10 @@ void send_msg_handler()
         }
         else
         {
+        
             sprintf(buffer, "%s %s\n", name, input_text);
-            send(sockfd, buffer, strlen(buffer), 0);
+            printf("buffer %s", buffer);
+            printf("%d",send(sockfd, buffer, strlen(buffer), 0));
         }
 
         // bzero(message, LENGTH);
@@ -240,8 +248,13 @@ void recv_msg_handler()
     }
 }
 
-char *toUpper(char *text)
+void toUpper(char *text)
 {
+
+	for (int i = 0; i<51; i++)
+	    {
+		upper_text[i]  = '\0';
+	    }
     for (int i = 0; text[i] != '\0'; i++)
     {
         if (text[i] >= 'a' && text[i] <= 'z')
@@ -249,7 +262,6 @@ char *toUpper(char *text)
             upper_text[i] = text[i] - 32;
         }
     }
-    return upper_text;
 }
 
 int main(int argc, char **argv)
@@ -297,7 +309,7 @@ retrieve_again:
             }
             char name_buffer[50];
 
-            sprintf(name_buffer, "%s %s", name, snc_command.sub_text)
+            sprintf(name_buffer, "%s %s", name, snc_command.sub_text);
 
                 // Send name
                 send(sockfd, name_buffer, 50, 0);
@@ -321,7 +333,9 @@ retrieve_again:
         }
         else
         {
+        	
             printf("Already joined\n");
+            
         }
     }
 
@@ -337,7 +351,9 @@ retrieve_again:
     // }
     else /* default: */
     {
+  
         printf("Please Join the Server\n");
+        goto retrieve_again;
     }
 
     // printf("Please enter your name: ");
