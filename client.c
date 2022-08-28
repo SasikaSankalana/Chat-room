@@ -38,12 +38,12 @@ void str_overwrite_stdout()
 void SNC_command_retriever()
 {
 
-	snc_command.command[0]=0;
-	snc_command.sub_command[0]=0;
-	snc_command.sub_text[0]=0;
+    snc_command.command[0] = 0;
+    snc_command.sub_command[0] = 0;
+    snc_command.sub_text[0] = 0;
     str_overwrite_stdout();
     fgets(input_text, LENGTH, stdin);
-    str_trim_lf(input_text,LENGTH);
+    str_trim_lf(input_text, LENGTH);
     sscanf(input_text, "%s %s  %[^\n]", snc_command.command, snc_command.sub_command, snc_command.sub_text);
     toUpper(snc_command.command);
     strcpy(snc_command.command, upper_text);
@@ -166,7 +166,7 @@ int SNC_command_validator()
     }
     else
     {
-    //printf("%s",snc_command.command);
+        // printf("%s",snc_command.command);
         printf("Invalid Command. Please check again  \n ");
         return 0;
     }
@@ -213,10 +213,10 @@ void send_msg_handler()
         }
         else
         {
-        
+
             sprintf(buffer, "%s %s\n", name, input_text);
             printf("buffer %s", buffer);
-            printf("%d",send(sockfd, buffer, strlen(buffer), 0));
+            printf("%d", send(sockfd, buffer, strlen(buffer), 0));
         }
 
         // bzero(message, LENGTH);
@@ -251,10 +251,10 @@ void recv_msg_handler()
 void toUpper(char *text)
 {
 
-	for (int i = 0; i<51; i++)
-	    {
-		upper_text[i]  = '\0';
-	    }
+    for (int i = 0; i < 51; i++)
+    {
+        upper_text[i] = '\0';
+    }
     for (int i = 0; text[i] != '\0'; i++)
     {
         if (text[i] >= 'a' && text[i] <= 'z')
@@ -311,8 +311,8 @@ retrieve_again:
 
             sprintf(name_buffer, "%s %s", name, snc_command.sub_text);
 
-                // Send name
-                send(sockfd, name_buffer, 50, 0);
+            // Send name
+            send(sockfd, name_buffer, 50, 0);
 
             printf("=== WELCOME TO THE CHATROOM ===\n");
             is_joined = 1;
@@ -333,9 +333,8 @@ retrieve_again:
         }
         else
         {
-        	
+
             printf("Already joined\n");
-            
         }
     }
 
@@ -351,7 +350,7 @@ retrieve_again:
     // }
     else /* default: */
     {
-  
+
         printf("Please Join the Server\n");
         goto retrieve_again;
     }
