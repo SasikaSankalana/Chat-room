@@ -222,30 +222,48 @@ void *handle_client(void *arg)
                 int check = 0;
                 for (int i = 0; i < MAX_CLIENTS; ++i)
                 {
+                if (clients[i])
+        {
                     if (strcmp(snc_command.sub_command, clients[i]->name) == 0)
                     {
                         sprintf(buff_out, "%s : %s\n", cli->name, snc_command.sub_text);
                         send_message(buff_out, clients[i]->uid);
                         check = 1;
                         break;
+                    } 
                     }
                 }
-                if (check == 0)
+                if (!check)
                 {
-                    // printf("check 21\n");
-                    printf("Check nickname again.");
+                    printf("CLIENT \"%s\" NOT REGISTERED\n",snc_command.sub_command);
+                    sprintf(buff_out, "SERVER : CHECK THE NICKNAME AGAIN\n");
+                    send_message(buff_out, cli->uid);
                 }
-            } // printf("check 23\n");
-            ///// worked send function. But missing one
-
-            // if (strlen(buff_out) > 0)
-            // {
-            //     // printf("check 24\n");
-            //     // send_message(buff_out, cli->uid);
-
-            //     str_trim_lf(buff_out, strlen(buff_out));
-            //     printf("%s -> %s\n", buff_out, cli->name);
-            // }
+            } 
+            
+            else if (strcmp(upper_text, "WHOIS") == 0)
+            {
+            int check = 0;
+                for (int i = 0; i < MAX_CLIENTS; ++i)
+                {
+                if (clients[i])
+        {
+                    if (strcmp(snc_command.sub_command, clients[i]->name) == 0)
+                    {
+                        sprintf(buff_out, "SERVER : NICKNAME -> %s   FULL NAME -> \n", clients[i]->name, clients[i]->fullname);
+                        send_message(buff_out, cli->uid);
+                        check = 1;
+                        break;
+                    } 
+                    }
+                }
+                if (!check)
+                {
+                    printf("CLIENT \"%s\" NOT REGISTERED\n",snc_command.sub_command);
+                    sprintf(buff_out, "SERVER : CHECK THE NICKNAME AGAIN\n");
+                    send_message(buff_out, cli->uid);
+                }
+            }
         }
         else if (receive == 0 || strcmp(buff_out, "QUIT") == 0)
         {
