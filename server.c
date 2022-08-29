@@ -6,6 +6,7 @@
 #include <unistd.h>
 #include <errno.h>
 #include <string.h>
+#include <time.h>
 #include <pthread.h>
 #include <sys/types.h>
 #include <signal.h>
@@ -18,6 +19,7 @@ static int uid = 10;
 char upper_text[50];
 
 int max_no_of_clients;
+int max_idle_time;
 
 /* Client structure */
 typedef struct
@@ -169,6 +171,15 @@ void send_message(char *s, int uid)
     pthread_mutex_unlock(&clients_mutex);
 }
 
+char *get_time()
+{
+    time_t current_time = time(NULL);
+    char *time_str = ctime(&current_time);
+    time_str[strlen(time_str) - 1] = '\0';
+
+    return time_str;
+}
+
 /* Handle all communication with the client */
 void *handle_client(void *arg)
 {
@@ -198,75 +209,107 @@ void *handle_client(void *arg)
 
     bzero(buff_out, BUFFER_SZ);
 
-    while (1)
+    time_t t = time(NULL) + max_idle_time;
+    while (1) // timer diff witout 1?
     {
         if (leave_flag)
         {
             break;
         }
 
+        if (time(NULL) >= t + 10)
+        {
+            sprintf(buff_out, "SERVER : YOU WILL BE TERMINATED WITHIN NEXT 10 SECONDS.\n");
+            send_message(buff_out, cli->uid);
+        }
+
+        if (time(NULL) >= t)
+        {
+            sprintf(buff_out, "SERVER : YOU HAVE BEEN TERMINATED.\n");
+            send_message(buff_out, cli->uid);
+            bzero(buff_out, BUFFER_SZ);
+            sprintf(buff_out, "SERVER : USER %s TERMINATED.\n", cli->uid);
+            broadcast(buff_out, cli->uid);
+        }
+
         int receive = recv(cli->sockfd, buff_out, BUFFER_SZ, 0);
         if (receive >= 0)
         {
-            printf("check 1\n");
 
             sscanf(buff_out, "%s %s %s %[^\n]", snc_command.nick_name, snc_command.command, snc_command.sub_command, snc_command.sub_text);
             // bzero(buff_out, BUFFER_SZ);
             toUpper(snc_command.command);
+            t = time(NULL) + max_idle_time;
         }
 
         if (receive > 0)
         {
+
+            // max idle time --
             if (strcmp(upper_text, "MSG") == 0)
             {
                 int check = 0;
                 for (int i = 0; i < MAX_CLIENTS; ++i)
                 {
-                if (clients[i])
-        {
-                    if (strcmp(snc_command.sub_command, clients[i]->name) == 0)
+                    if (clients[i])
                     {
-                        sprintf(buff_out, "%s : %s\n", cli->name, snc_command.sub_text);
-                        send_message(buff_out, clients[i]->uid);
-                        check = 1;
-                        break;
-                    } 
+                        if (strcmp(snc_command.sub_command, clients[i]->name) == 0)
+                        {
+                            sprintf(buff_out, "%s : %s\n", cli->name, snc_command.sub_text);
+                            send_message(buff_out, clients[i]->uid);
+                            check = 1;
+                            break;
+                        }
                     }
                 }
                 if (!check)
                 {
-                    printf("CLIENT \"%s\" NOT REGISTERED\n",snc_command.sub_command);
-                    sprintf(buff_out, "SERVER : CHECK THE NICKNAME AGAIN\n");
-                    send_message(buff_out, cli->uid);
-                }
-            } 
-            
-            else if (strcmp(upper_text, "WHOIS") == 0)
-            {
-            int check = 0;
-                for (int i = 0; i < MAX_CLIENTS; ++i)
-                {
-                if (clients[i])
-        {
-                    if (strcmp(snc_command.sub_command, clients[i]->name) == 0)
-                    {
-                        sprintf(buff_out, "SERVER : NICKNAME -> %s   FULL NAME -> \n", clients[i]->name, clients[i]->fullname);
-                        send_message(buff_out, cli->uid);
-                        check = 1;
-                        break;
-                    } 
-                    }
-                }
-                if (!check)
-                {
-                    printf("CLIENT \"%s\" NOT REGISTERED\n",snc_command.sub_command);
+                    printf("CLIENT \"%s\" NOT REGISTERED\n", snc_command.sub_command);
                     sprintf(buff_out, "SERVER : CHECK THE NICKNAME AGAIN\n");
                     send_message(buff_out, cli->uid);
                 }
             }
+
+            else if (strcmp(upper_text, "WHOIS") == 0)
+            {
+                int check = 0;
+                for (int i = 0; i < MAX_CLIENTS; ++i)
+                {
+                    if (clients[i])
+                    {
+                        if (strcmp(snc_command.sub_command, clients[i]->name) == 0)
+                        {
+                            sprintf(buff_out, "SERVER : NICKNAME -> %s   FULL NAME -> \n", clients[i]->name, clients[i]->fullname);
+                            send_message(buff_out, cli->uid);
+                            check = 1;
+                            break;
+                        }
+                    }
+                }
+                if (!check)
+                {
+                    printf("CLIENT \"%s\" NOT REGISTERED\n", snc_command.sub_command);
+                    sprintf(buff_out, "SERVER : CHECK THE NICKNAME AGAIN\n");
+                    send_message(buff_out, cli->uid);
+                }
+            }
+            else if (strcmp(upper_text, "TIME") == 0)
+            {
+                send_message(get_time(), cli->uid);
+            }
+            else if (strcmp(upper_text, "ALIVE") == 0)
+            {
+                t = time(NULL) + max_idle_time;
+            }
+            else
+            {
+            }
         }
         else if (receive == 0 || strcmp(buff_out, "QUIT") == 0)
         {
+            sprintf(buff_out, "SERVER : Good Bye %s!\n", cli->name);
+            send_message(buff_out, cli->uid);
+            bzero(buff_out, BUFFER_SZ);
             sprintf(buff_out, "%s has left\n", cli->name);
             printf("%s", buff_out);
             broadcast(buff_out, cli->uid);
@@ -299,7 +342,7 @@ int main(int argc, char **argv)
         return EXIT_FAILURE;
     }
 
-    int max_idle_time = atoi(argv[1]);
+    max_idle_time = atoi(argv[1]);
     max_no_of_clients = atoi(argv[2]);
 
     if (max_idle_time > 100 || max_idle_time < 1)
