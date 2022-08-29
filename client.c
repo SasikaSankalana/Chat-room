@@ -34,6 +34,35 @@ void str_overwrite_stdout()
     fflush(stdout);
 }
 
+void toUpper(char *text)
+{
+
+    for (int i = 0; i < 51; i++)
+    {
+        upper_text[i] = '\0';
+    }
+    for (int i = 0; text[i] != '\0'; i++)
+    {
+        if (text[i] >= 'a' && text[i] <= 'z')
+        {
+            upper_text[i] = text[i] - 32;
+        }
+    }
+}
+
+void str_trim_lf(char *arr, int length)
+{
+    int i;
+    for (i = 0; i < length; i++)
+    {
+        if (arr[i] == '\n')
+        {
+            arr[i] = '\0';
+            break;
+        }
+    }
+}
+
 void SNC_command_retriever()
 {
 
@@ -52,29 +81,28 @@ int SNC_command_validator()
 {
     if (strcmp(snc_command.command, "JOIN") == 0)
     {
-        
 
         if (strlen(snc_command.sub_command) > 20)
         {
-            printf("Only 20 characters allowed for the nick name \n ");
+            printf("Only 20 characters allowed for the nick name \n");
             return 0;
         }
 
         if (!(strlen(snc_command.sub_command) > 0))
         {
-            printf("Nickname cannot be empty \n ");
+            printf("Nickname cannot be empty \n");
             return 0;
         }
 
         if (strlen(snc_command.sub_text) > 20)
         {
-            printf("Only 20 characters allowed for the name \n ");
+            printf("Only 20 characters allowed for the name \n");
             return 0;
         }
 
         if (!(strlen(snc_command.sub_text) > 0))
         {
-            printf("Name cannot be empty \n ");
+            printf("Name cannot be empty\n");
             return 0;
         }
 
@@ -84,19 +112,19 @@ int SNC_command_validator()
     {
         if (strlen(snc_command.sub_command) > 20)
         {
-            printf("Nickname should be under 20 characters \n ");
+            printf("Nickname should be under 20 characters \n");
             return 0;
         }
 
         if (!(strlen(snc_command.sub_command) > 0))
         {
-            printf("Enter a nickname \n ");
+            printf("Enter a nickname \n");
             return 0;
         }
 
         if ((strlen(snc_command.sub_text) > 0))
         {
-            printf("Invalid argument. Please check again \n ");
+            printf("Invalid argument. Please check again \n");
             return 0;
         }
 
@@ -106,25 +134,25 @@ int SNC_command_validator()
     {
         if (strlen(snc_command.sub_command) > 20)
         {
-            printf("Nickname should be under 20 characters \n ");
+            printf("Nickname should be under 20 characters \n");
             return 0;
         }
 
         if (!(strlen(snc_command.sub_command) > 0))
         {
-            printf("Enter a nickname \n ");
+            printf("Enter a nickname \n");
             return 0;
         }
 
-        if (strlen(snc_command.sub_text) > 250)
+        if (strlen(snc_command.sub_text) > 256)
         {
-            printf("Only 256 characters allowed in a message \n ");
+            printf("Only 256 characters allowed in a message \n");
             return 0;
         }
 
         if (!(strlen(snc_command.sub_text) > 0))
         {
-            printf("Message cannot be empty \n ");
+            printf("Message cannot be empty \n");
             return 0;
         }
 
@@ -134,7 +162,7 @@ int SNC_command_validator()
     {
         if ((strlen(snc_command.sub_command) > 0) || (strlen(snc_command.sub_text) > 0))
         {
-            printf("Invalid argument. Please check again  \n ");
+            printf("Invalid argument. Please check again \n");
             return 0;
         }
 
@@ -144,7 +172,7 @@ int SNC_command_validator()
     {
         if ((strlen(snc_command.sub_command) > 0) || (strlen(snc_command.sub_text) > 0))
         {
-            printf("Invalid argument. Please check again  \n ");
+            printf("Invalid argument. Please check again  \n");
             return 0;
         }
 
@@ -154,29 +182,15 @@ int SNC_command_validator()
     {
         if ((strlen(snc_command.sub_command) > 0) || (strlen(snc_command.sub_text) > 0))
         {
-            printf("Invalid argument. Please check again  \n ");
+            printf("Invalid argument. Please check again  \n");
             return 0;
         }
         return 1;
     }
     else
     {
-        // printf("%s",snc_command.command);
-        printf("Invalid Command. Please check again  \n ");
+        printf("Invalid Command. Please check again  \n");
         return 0;
-    }
-}
-
-void str_trim_lf(char *arr, int length)
-{
-    int i;
-    for (i = 0; i < length; i++)
-    { // trim \n
-        if (arr[i] == '\n')
-        {
-            arr[i] = '\0';
-            break;
-        }
     }
 }
 
@@ -193,15 +207,10 @@ void send_msg_handler()
     while (1)
     {
         SNC_command_retriever();
-        if (SNC_command_validator() == 0)
+        if (!SNC_command_validator())
         {
             continue;
         }
-
-        // str_overwrite_stdout();
-        // fgets(message, LENGTH, stdin);
-        // str_trim_lf(message, LENGTH);
-
         if (strcmp(snc_command.command, "QUIT") == 0)
         {
             break;
@@ -209,11 +218,9 @@ void send_msg_handler()
         else
         {
 
-
             send(sockfd, buffer, strlen(buffer), 0);
         }
 
-        // bzero(message, LENGTH);
         bzero(buffer, LENGTH + 32);
     }
     catch_ctrl_c_and_exit(2);
@@ -228,7 +235,6 @@ void recv_msg_handler()
         if (receive > 0)
         {
             printf("%s", message);
-            str_overwrite_stdout();
         }
         else if (receive == 0)
         {
@@ -239,22 +245,6 @@ void recv_msg_handler()
             // -1
         }
         memset(message, 0, sizeof(message));
-    }
-}
-
-void toUpper(char *text)
-{
-
-    for (int i = 0; i < 51; i++)
-    {
-        upper_text[i] = '\0';
-    }
-    for (int i = 0; text[i] != '\0'; i++)
-    {
-        if (text[i] >= 'a' && text[i] <= 'z')
-        {
-            upper_text[i] = text[i] - 32;
-        }
     }
 }
 
@@ -274,56 +264,54 @@ int main(int argc, char **argv)
 retrieve_again:
     SNC_command_retriever();
 
-    if (SNC_command_validator == 0)
+    if (!SNC_command_validator())
     {
         goto retrieve_again;
     }
 
     if (strcmp(snc_command.command, "JOIN") == 0)
     {
-        
-            strcpy(name, snc_command.sub_command);
-            // str_trim_lf(name, strlen(name));
 
-            struct sockaddr_in server_address;
+        strcpy(name, snc_command.sub_command);
+        str_trim_lf(name, strlen(name));
 
-            /* Socket settings */
-            sockfd = socket(AF_INET, SOCK_STREAM, 0);
-            server_address.sin_family = AF_INET;
-            server_address.sin_addr.s_addr = inet_addr(ip);
-            server_address.sin_port = htons(port);
+        struct sockaddr_in server_address;
 
-            // Connect to Server
-            int connect_error = connect(sockfd, (struct sockaddr *)&server_address, sizeof(server_address));
-            if (connect_error == -1)
-            {
-                printf("ERROR: connect\n");
-                return EXIT_FAILURE;
-            }
-            char name_buffer[50];
+        /* Socket settings */
+        sockfd = socket(AF_INET, SOCK_STREAM, 0);
+        server_address.sin_family = AF_INET;
+        server_address.sin_addr.s_addr = inet_addr(ip);
+        server_address.sin_port = htons(port);
 
-            sprintf(name_buffer, "%s %s", name, snc_command.sub_text);
+        // Connect to Server
+        int connect_error = connect(sockfd, (struct sockaddr *)&server_address, sizeof(server_address));
+        if (connect_error == -1)
+        {
+            printf("ERROR: connect\n");
+            return EXIT_FAILURE;
+        }
+        char name_buffer[50];
 
-            // Send name
-            send(sockfd, name_buffer, 50, 0);
-            
+        sprintf(name_buffer, "%s %s", name, snc_command.sub_text);
 
-            //printf("=== WELCOME TO THE CHATROOM ===\n");
-           
-            pthread_t send_msg_thread;
-            if (pthread_create(&send_msg_thread, NULL, (void *)send_msg_handler, NULL) != 0)
-            {
-                printf("ERROR: pthread\n");
-                return EXIT_FAILURE;
-            }
+        // Send name
+        send(sockfd, name_buffer, 50, 0);
 
-            pthread_t receive_msg_thread;
-            if (pthread_create(&receive_msg_thread, NULL, (void *)recv_msg_handler, NULL) != 0)
-            {
-                printf("ERROR: pthread\n");
-                return EXIT_FAILURE;
-            }
-        
+        // printf("=== WELCOME TO THE CHATROOM ===\n");
+
+        pthread_t send_msg_thread;
+        if (pthread_create(&send_msg_thread, NULL, (void *)send_msg_handler, NULL) != 0)
+        {
+            printf("ERROR: pthread\n");
+            return EXIT_FAILURE;
+        }
+
+        pthread_t receive_msg_thread;
+        if (pthread_create(&receive_msg_thread, NULL, (void *)recv_msg_handler, NULL) != 0)
+        {
+            printf("ERROR: pthread\n");
+            return EXIT_FAILURE;
+        }
     }
 
     //     //  printf("Current Time : %s\n", time_str);
