@@ -8,6 +8,8 @@
 #include <string.h>
 #include <pthread.h>
 #include <sys/types.h>
+#include <sys/time.h>
+#include <sys/select.h>
 #include <signal.h>
 
 #define BUFFER_SZ 288
@@ -15,9 +17,13 @@
 
 static _Atomic unsigned int client_count = 0;
 static int uid = 10;
-char upper_text[50];
-int user_check = 0;
+
 int max_no_of_clients;
+int max_idle_time;
+int user_check = 0;
+
+
+
 
 /* Client structure */
 typedef struct
@@ -41,21 +47,6 @@ client_t *clients[MAX_CLIENTS];
 
 pthread_mutex_t clients_mutex = PTHREAD_MUTEX_INITIALIZER;
 
-void toUpper(char *text)
-{
-
-    for (int i = 0; i < 51; i++)
-    {
-        upper_text[i] = '\0';
-    }
-    for (int i = 0; text[i] != '\0'; i++)
-    {
-        if (text[i] >= 'a' && text[i] <= 'z')
-        {
-            upper_text[i] = text[i] - 32;
-        }
-    }
-}
 
 void str_overwrite_stdout()
 {
@@ -178,14 +169,23 @@ char *get_time()
     return time_str;
 }
 
+
+
 /* Handle all communication with the client */
 void *handle_client(void *arg)
 {
-    char buff_out[BUFFER_SZ];
-    char name[50];
+
+char buff_out[BUFFER_SZ];
+
+fd_set readfds;
+struct timeval timeout;
+int sret;
+
+
+    int leave_flag = 0;
+    char  name[50];
     char fullname[20];
     char nickname[20];
-    int leave_flag = 0;
 
     client_count++;
     client_t *cli = (client_t *)arg;
@@ -198,155 +198,214 @@ void *handle_client(void *arg)
     }
     else
     {
-        sscanf(name, "%s %[^\n]", nickname, fullname);
+      
 
-                for (int i = 0; i < MAX_CLIENTS; ++i)
-                {
-                if (clients[i])
+    sscanf(name, "%s %[^\n]", nickname, fullname);
+
+    for (int i = 0; i < MAX_CLIENTS; ++i)
+    {
+        if (clients[i])
         {
-                    if (strcmp(clients[i]->fullname, fullname) == 0)
-                    {
-                        sprintf(buff_out, "SERVER : NAME ALREADY EXIST.\n");
-                        send_message(buff_out, cli->uid);
-                        leave_flag = 1;
-                        break;
-                    } else if (strcmp(clients[i]->name, nickname) == 0)
-                    {
-                        sprintf(buff_out, "SERVER : NICKNAME ALREADY TAKEN. CHOOSE A DIFFERENT NICKNAME AND JOIN.\n");
-                        send_message(buff_out, cli->uid);
-                        leave_flag = 1;
-                        break;
-                    } 
-                    }
-                }
-                
-          	if(!leave_flag)  {    
+            if (strcmp(clients[i]->fullname, fullname) == 0)
+            {
+                sprintf(buff_out, "SERVER : NAME ALREADY EXIST.\n");
+                send_message(buff_out, cli->uid);
+                user_check = 1;
+                break;
+            }
+            else if (strcmp(clients[i]->name, nickname) == 0)
+            {
+                sprintf(buff_out, "SERVER : NICKNAME ALREADY TAKEN. CHOOSE A DIFFERENT NICKNAME AND JOIN.\n");
+                send_message(buff_out, cli->uid);
+                user_check = 1;
+                break;
+            }
+        }
+    }
+
+    if (!user_check)
+    {
         strcpy(cli->name, nickname);
         strcpy(cli->fullname, fullname);
-        sprintf(buff_out, "%s has joined\n", cli->name);
-        
+
+        sprintf(buff_out, "SERVER : %s, Welcome to SNC!\n", cli->name);
+        send_message(buff_out, cli->uid);
+
+        bzero(buff_out, BUFFER_SZ);
+
+        sprintf(buff_out, "SERVER : A new user %s has joined SNC!\n", cli->name);
         broadcast(buff_out, cli->uid);
-        user_check = 1;
-        }
+        //user_check = 1;
+    }
     }
 
     bzero(buff_out, BUFFER_SZ);
 
     while (1)
     {
+
+FD_ZERO(&readfds);
+FD_SET(cli->sockfd, &readfds);
+timeout.tv_sec = max_idle_time;
+timeout.tv_usec = 0;
+
+
         if (leave_flag)
         {
             break;
         }
+        
+        
+        sret = select(8, &readfds,NULL,NULL,&timeout);
+        if(sret == 0){
+        printf("%s timeout\n",cli->name);
+        sprintf(buff_out,"SERVER : CONNECTION TERMINATED DUE TO INACTIVITY.\n");
+        send_message(buff_out, cli->uid);
+        bzero(buff_out, BUFFER_SZ);
 
+            sprintf(buff_out, "SERVER : %s TERMINATED DUE TO INACTIVITY.\n", cli->name);
+            broadcast(buff_out, cli->uid);
+        leave_flag = 1;
+        }
+	else{
         int receive = recv(cli->sockfd, buff_out, BUFFER_SZ, 0);
+       
         if (receive >= 0)
         {
-            printf("check 1\n");
 
             sscanf(buff_out, "%s %s %s %[^\n]", snc_command.nick_name, snc_command.command, snc_command.sub_command, snc_command.sub_text);
-            // bzero(buff_out, BUFFER_SZ);
-            toUpper(snc_command.command);
+            bzero(buff_out, BUFFER_SZ);
         }
 
         if (receive > 0)
         {
-        
-       	if (strcmp(upper_text, "JOIN") == 0 ){
-       	
-       	if(!user_check){
-       	sscanf(name, "%s %[^\n]", nickname, fullname);
 
-                for (int i = 0; i < MAX_CLIENTS; ++i)
+            if (strcmp(snc_command.command, "JOIN") == 0)
+            {
+            timeout.tv_sec = max_idle_time;
+
+                if (user_check)
                 {
-                if (clients[i])
+                user_check = 0;
+
+
+    //sscanf(name, "%s %[^\n]", nickname, fullname);
+
+    for (int i = 0; i < MAX_CLIENTS; ++i)
+    {
+        if (clients[i])
         {
-                    if (strcmp(clients[i]->fullname, fullname) == 0)
-                    {
-                        sprintf(buff_out, "SERVER : NAME ALREADY EXIST.\n");
-                        send_message(buff_out, cli->uid);
-                        leave_flag = 1;
-                        break;
-                    } else if (strcmp(clients[i]->name, nickname) == 0)
-                    {
-                        sprintf(buff_out, "SERVER : NICKNAME ALREADY TAKEN. CHOOSE A DIFFERENT NICKNAME AND JOIN.\n");
-                        send_message(buff_out, cli->uid);
-                        leave_flag = 1;
-                        break;
-                    } 
-                    }
-                }}else{
-                
-                sprintf(buff_out, "SERVER : ALREADY JOINED\n");
-                        send_message(buff_out, cli->uid);
-                }
-                
-                
-          	if(!leave_flag)  {    
-        strcpy(cli->name, nickname);
-        strcpy(cli->fullname, fullname);
-        sprintf(buff_out, "%s has joined\n", cli->name);
-        
-        broadcast(buff_out, cli->uid);
-        user_check = 1;
+            if (strcmp(clients[i]->fullname, snc_command.sub_text) == 0)
+            {
+                sprintf(buff_out, "SERVER : NAME ALREADY EXIST.\n");
+                send_message(buff_out, cli->uid);
+                user_check = 1;
+                break;
+            }
+            else if (strcmp(clients[i]->name, snc_command.sub_command) == 0)
+            {
+                sprintf(buff_out, "SERVER : NICKNAME ALREADY TAKEN. CHOOSE A DIFFERENT NICKNAME AND JOIN.\n");
+                send_message(buff_out, cli->uid);
+                user_check= 1;
+                break;
+            }
         }
-       	
-       	}
-            else if (strcmp(upper_text, "MSG") == 0)
+    }
+
+    if (!user_check)
+    {
+        strcpy(cli->name, snc_command.sub_command);
+        strcpy(cli->fullname, snc_command.sub_text);
+        strcpy(nickname, snc_command.sub_command);
+            strcpy(fullname, snc_command.sub_text);
+
+
+        sprintf(buff_out, "SERVER : %s, Welcome to SNC!\n", cli->name);
+        send_message(buff_out, cli->uid);
+
+        bzero(buff_out, BUFFER_SZ);
+
+        sprintf(buff_out, "SERVER : A new user %s has joined SNC!\n", cli->name);
+        broadcast(buff_out, cli->uid);
+        //user_check = 1;
+    }
+                }
+                else
+                {
+                    sprintf(buff_out, "SERVER : ALREADY JOINED\n");
+                    send_message(buff_out, cli->uid);
+                }
+            }
+            else if (strcmp(snc_command.command, "MSG") == 0)
             {
+            timeout.tv_sec = max_idle_time;
                 int check = 0;
-                for (int i = 0; i < MAX_CLIENTS; ++i)
-                {
-                if (clients[i])
+    for (int i = 0; i < MAX_CLIENTS; ++i)
+    {
+        if (clients[i])
         {
-                    if (strcmp(snc_command.sub_command, clients[i]->name) == 0)
-                    {
-                        sprintf(buff_out, "%s : %s\n", cli->name, snc_command.sub_text);
-                        send_message(buff_out, clients[i]->uid);
-                        check = 1;
-                        break;
-                    } 
-                    }
-                }
-                if (!check)
-                {
-                    printf("CLIENT \"%s\" NOT REGISTERED\n",snc_command.sub_command);
-                    sprintf(buff_out, "SERVER : CHECK THE NICKNAME AGAIN\n");
-                    send_message(buff_out, cli->uid);
-                }
-            } 
-            
-            else if (strcmp(upper_text, "WHOIS") == 0)
+            if (strcmp(snc_command.sub_command, clients[i]->name) == 0)
             {
-            int check = 0;
-                for (int i = 0; i < MAX_CLIENTS; ++i)
-                {
-                if (clients[i])
+                sprintf(buff_out, "%s : %s\n", cli->name, snc_command.sub_text);
+                send_message(buff_out, clients[i]->uid);
+                check = 1;
+                break;
+            }
+        }
+    }
+    if (!check)
+    {
+        printf("CLIENT \"%s\" NOT REGISTERED\n", snc_command.sub_command);
+        sprintf(buff_out, "SERVER : CHECK THE NICKNAME AGAIN\n");
+        send_message(buff_out, cli->uid);
+    }
+            }
+
+            else if (strcmp(snc_command.command, "WHOIS") == 0)
+            {
+            timeout.tv_sec = max_idle_time;
+                int check = 0;
+    for (int i = 0; i < MAX_CLIENTS; ++i)
+    {
+        if (clients[i])
         {
-                    if (strcmp(snc_command.sub_command, clients[i]->name) == 0)
-                    {
-                        sprintf(buff_out, "SERVER : NICKNAME -> %s   FULL NAME -> \n", clients[i]->name, clients[i]->fullname);
-                        send_message(buff_out, cli->uid);
-                        check = 1;
-                        break;
-                    } 
-                    }
-                }
-                if (!check)
-                {
-                    printf("CLIENT \"%s\" NOT REGISTERED\n",snc_command.sub_command);
-                    sprintf(buff_out, "SERVER : CHECK THE NICKNAME AGAIN\n");
-                    send_message(buff_out, cli->uid);
-                }
-            } else if (strcmp(upper_text, "TIME") == 0)
+            if (strcmp(snc_command.sub_command, clients[i]->name) == 0)
             {
-                send_message(get_time(), cli->uid);
+                sprintf(buff_out, "SERVER : %s  %s \n", clients[i]->name, clients[i]->fullname);
+                send_message(buff_out, cli->uid);
+                check = 1;
+                break;
+            }
+        }
+    }
+    if (!check)
+    {
+        printf("CLIENT \"%s\" NOT REGISTERED\n", snc_command.sub_command);
+        sprintf(buff_out, "SERVER : CHECK THE NICKNAME AGAIN\n");
+        send_message(buff_out, cli->uid);
+    }
+            }
+            else if (strcmp(snc_command.command, "TIME") == 0)
+            {
+            sprintf(buff_out, "SERVER : %s\n",get_time());
+                send_message(buff_out, cli->uid);
+                timeout.tv_sec = max_idle_time;
+            }
+            else if (strcmp(snc_command.command, "ALIVE") == 0)
+            {
+            sprintf(buff_out, "SERVER : IDLE TIME REINITIALIZED.\n");
+                send_message(buff_out, cli->uid);
+                timeout.tv_sec = max_idle_time;
             }
         }
         else if (receive == 0 || strcmp(buff_out, "QUIT") == 0)
         {
-            sprintf(buff_out, "%s has left\n", cli->name);
-            printf("%s", buff_out);
+            sprintf(buff_out, "SERVER : Bye %s!\n", cli->name);
+            send_message(buff_out, cli->uid);
+
+            bzero(buff_out, BUFFER_SZ);
+
+            sprintf(buff_out, "SERVER : %s has stopped chatting.\n", cli->name);
             broadcast(buff_out, cli->uid);
             leave_flag = 1;
         }
@@ -355,7 +414,7 @@ void *handle_client(void *arg)
             printf("ERROR: -1\n");
             leave_flag = 1;
         }
-
+}
         bzero(buff_out, BUFFER_SZ);
     }
 
@@ -377,7 +436,7 @@ int main(int argc, char **argv)
         return EXIT_FAILURE;
     }
 
-    int max_idle_time = atoi(argv[2]);
+    max_idle_time = atoi(argv[2]);
     max_no_of_clients = atoi(argv[1]);
 
     if (max_idle_time > 100 || max_idle_time < 1)
