@@ -314,6 +314,7 @@ retrieve_again:
 
         while(1){
             if(flag){
+                printf("SERVER : Bye %s!\n",name);
                 
                 break;
             }
