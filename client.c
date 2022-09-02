@@ -8,31 +8,25 @@
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <pthread.h>
+#include <errno.h>
+
 
 #define LENGTH 258
-#define ID "123"
+#define BUFFER_LENGTH 350
 
 // Global variables
 volatile sig_atomic_t flag = 0;
 int sockfd = 0;
 char input_text[LENGTH + 100];
+char upper_text[25];
+char name[25];
 
 struct snc_command_holder
 {
-    char command[50];
-    char sub_command[50];
+    char command[25];
+    char sub_command[25];
     char sub_text[LENGTH];
 } snc_command;
-
-char upper_text[50];
-
-char name[20];
-
-void str_overwrite_stdout()
-{
-    printf("%s > ", ID);
-    fflush(stdout);
-}
 
 void toUpper(char *text)
 {
@@ -69,9 +63,9 @@ void SNC_command_retriever()
     snc_command.command[0] = 0;
     snc_command.sub_command[0] = 0;
     snc_command.sub_text[0] = 0;
-    str_overwrite_stdout();
+
     fgets(input_text, LENGTH, stdin);
-    str_trim_lf(input_text, LENGTH);
+    // str_trim_lf(input_text, LENGTH);
     sscanf(input_text, "%s %s  %[^\n]", snc_command.command, snc_command.sub_command, snc_command.sub_text);
     toUpper(snc_command.command);
     strcpy(snc_command.command, upper_text);
@@ -202,7 +196,7 @@ void catch_ctrl_c_and_exit(int sig)
 void send_msg_handler()
 {
     // char message[LENGTH] = {};
-    char buffer[LENGTH + 100] = {};
+    char buffer[BUFFER_LENGTH] = {};
 
     while (1)
     {
@@ -217,9 +211,9 @@ void send_msg_handler()
         }
         else
         {
-		sprintf(buffer, "%s %s %s %s", name,snc_command.command, snc_command.sub_command, snc_command.sub_text);
-            send(sockfd, buffer, strlen(buffer), 0);
-
+            sprintf(buffer, "%s %s %s %s", name, snc_command.command, snc_command.sub_command, snc_command.sub_text);
+            
+            send(sockfd, buffer, BUFFER_LENGTH, 0);
         }
 
         bzero(buffer, LENGTH + 32);
@@ -229,10 +223,11 @@ void send_msg_handler()
 
 void recv_msg_handler()
 {
-    char message[LENGTH] = {};
+    char message[LENGTH+30] = {};
     while (1)
     {
-        int receive = recv(sockfd, message, LENGTH, 0);
+        int receive = recv(sockfd, message, LENGTH+30, 0);
+        
         if (receive > 0)
         {
             printf("%s", message);
@@ -243,6 +238,8 @@ void recv_msg_handler()
         }
         else
         {
+        // printf("%s\n",strerror(errno));
+        
             // -1
         }
         memset(message, 0, sizeof(message));
@@ -274,7 +271,7 @@ retrieve_again:
     {
 
         strcpy(name, snc_command.sub_command);
-        str_trim_lf(name, strlen(name));
+        // str_trim_lf(name, strlen(name));
 
         struct sockaddr_in server_address;
 
@@ -291,14 +288,15 @@ retrieve_again:
             printf("ERROR: connect\n");
             return EXIT_FAILURE;
         }
-        char name_buffer[50];
+        char name_buffer[BUFFER_LENGTH + 50];
 
         sprintf(name_buffer, "%s %s", name, snc_command.sub_text);
 
         // Send name
-        send(sockfd, name_buffer, 50, 0);
+        send(sockfd, name_buffer, BUFFER_LENGTH + 50, 0);
+        //printf("send %d\n",sockfd);
 
-         //printf("=== WELCOME TO THE CHATROOM ===\n");
+        // printf("=== WELCOME TO THE CHATROOM ===\n");
 
         pthread_t send_msg_thread;
         if (pthread_create(&send_msg_thread, NULL, (void *)send_msg_handler, NULL) != 0)
@@ -312,6 +310,13 @@ retrieve_again:
         {
             printf("ERROR: pthread\n");
             return EXIT_FAILURE;
+        }
+
+        while(1){
+            if(flag){
+                
+                break;
+            }
         }
     }
 
@@ -363,13 +368,13 @@ retrieve_again:
 
     // printf("=== WELCOME TO THE CHATROOM ===\n");
 
-    //while (1)
+    // while (1)
     //{
-        //if (flag)
-        //{
-        //    printf("\nBye\n");
-         //   break;
-       // }
+    // if (flag)
+    //{
+    //     printf("\nBye\n");
+    //    break;
+    // }
     //}
 
     close(sockfd);
